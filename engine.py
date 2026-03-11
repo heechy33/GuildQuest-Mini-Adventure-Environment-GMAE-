@@ -41,6 +41,17 @@ def discover_adventures() -> list[type[MiniAdventure]]:
     return found
 
 
+def update_stats(profiles: dict, players: list[dict], result: str) -> None:
+    """Parse result string to credit wins/losses to each player's profile."""
+    for p in players:
+        name = p["name"]
+        if name in result:
+            profiles[name]["wins"] = profiles[name].get("wins", 0) + 1
+        else:
+            profiles[name]["losses"] = profiles[name].get("losses", 0) + 1
+    save_profiles(profiles)
+
+
 class Engine:
     def run(self):
         profiles = load_profiles()
@@ -65,6 +76,8 @@ class Engine:
         adventure = adventure_classes[choice]()
 
         adventure.start(players)
+        quit_requested = False
+
         while not adventure.is_over():
             state = adventure.get_state()
             print(f"\n{state}")
@@ -72,8 +85,26 @@ class Engine:
             for i, p in enumerate(players):
                 if adventure.is_over():
                     break
-                action = input(f"{p['name']}'s action: ").strip()
+                action = input(f"{p['name']}'s action (or 'quit'): ").strip().lower()
+
+                if action == "quit":
+                    print("\nAdventure abandoned. No stats recorded.")
+                    quit_requested = True
+                    break
+
                 msg = adventure.handle_input(i, action)
                 print(f"  → {msg}")
 
-        print(f"\n{adventure.get_result()}")
+            if quit_requested:
+                break
+
+        if not quit_requested:
+            result = adventure.get_result()
+            print(f"\n{result}")
+            update_stats(profiles, players, result)
+            print("\nUpdated profiles:")
+            for p in players:
+                name = p["name"]
+                pr = profiles[name]
+                print(f"  {name} — Wins: {pr['wins']}, Losses: {pr['losses']}")
+        

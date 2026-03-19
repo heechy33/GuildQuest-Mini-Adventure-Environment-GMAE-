@@ -9,7 +9,7 @@ A two-player CLI adventure engine that integrates teammate subsystems for charac
 GMAE is a pluggable mini-adventure platform where two players share a terminal session and compete or cooperate through short scenario-based adventures. It is built on top of two integrated teammate codebases:
 
 - **Geoffrey's subsystems** — `Character`, `Inventory`, `WorldClock`, and `Realm` for player state and time tracking
-- **Heehan's subsystems** — `Rarity`/`ItemType` enums, `EventDispatcher`/`UserNotifier` observer pattern, and swappable time-display strategies
+- **Heechan's subsystems** — `Rarity`/`ItemType` enums, `EventDispatcher`/`UserNotifier` observer pattern, and swappable time-display strategies
 
 ---
 
@@ -24,7 +24,7 @@ GMAE is a pluggable mini-adventure platform where two players share a terminal s
 │   ├── escort.py              # Co-op: guide an NPC across a 5×5 grid
 │   └── relic_hunt.py         # Competitive: race to collect relics by score
 ├── geoffreys_gmae_code/       # Geoffrey's Character, Inventory, WorldClock, Realm
-├── heechans_gmae_code/        # Heehan's Rarity, EventDispatcher, UserNotifier, strategies
+├── heechans_gmae_code/        # Heechan's Rarity, EventDispatcher, UserNotifier, strategies
 └── profiles.json              # Persisted player data (auto-created on first run)
 ```
 
@@ -69,7 +69,7 @@ Two players work together to guide an NPC from the center of a 5×5 grid to the 
 - **Items (I):** stepping on one grants bonus turns
 - **Win:** NPC reaches the goal before turns run out
 - **Loss:** turns reach zero
-- Uses Heehan's `BothClocksStrategy` to display both world and realm time
+- Uses Heechan's `BothClocksStrategy` to display both world and realm time
 
 ### Relic Hunt (competitive)
 
@@ -86,7 +86,7 @@ Two players race across a 5×5 grid to collect relics and accumulate score.
 
 - **Win condition:** first player to reach **3.0 score**
 - Collected relics are added to the player's `Character` inventory
-- Uses Heehan's `WorldClockStrategy` for time display
+- Uses Heechan's `WorldClockStrategy` for time display
 
 ---
 
@@ -128,7 +128,7 @@ Two players race across a 5×5 grid to collect relics and accumulate score.
 | `Inventory` / `InventoryItem` | Loot tracking; relics are added here on collection |
 | `Realm` + `FixedOffsetStrategy` | Converts world time to realm-local time |
 
-### Heehan's (`heechans_gmae_code/`)
+### Heechan's (`heechans_gmae_code/`)
 
 | Component | Description |
 |-----------|-------------|

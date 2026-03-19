@@ -1,14 +1,24 @@
 """
 Engine — loads adventures, manages profiles, runs the game loop.
+
+Reused subsystems:
+  - Geoffrey's: Character, InventoryItem, WorldClock (geoffreys_gmae_code/)
 """
 
 import importlib
 import pkgutil
 import json
 import os
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'geoffreys_gmae_code'))
+
+from geoffreys_gmae import Character, InventoryItem
 from adventure import MiniAdventure
 
 PROFILES_FILE = "profiles.json"
+
+_characters: dict[str, Character] = {}
 
 
 def load_profiles() -> dict:
@@ -25,9 +35,37 @@ def save_profiles(profiles: dict) -> None:
 
 def get_or_create_profile(name: str, profiles: dict) -> dict:
     if name not in profiles:
-        profiles[name] = {"name": name, "wins": 0, "losses": 0}
+        print("\n  [New player! Set up your GuildQuest character]")
+        character_name = input("    Character name: ").strip() or name
+        character_class = input("    Class (default: Adventurer): ").strip() or "Adventurer"
+        preferred_realm = input("    Preferred realm (default: Elvenwood): ").strip() or "Elvenwood"
+        profiles[name] = {
+            "name": name,
+            "wins": 0,
+            "losses": 0,
+            "character_name": character_name,
+            "character_class": character_class,
+            "character_level": 1,
+            "preferred_realm": preferred_realm,
+            "inventory": [],
+            "quest_history": [],
+        }
         save_profiles(profiles)
     return profiles[name]
+
+
+def get_character(profile: dict) -> Character:
+    name = profile["name"]
+    if name not in _characters:
+        char = Character(
+            profile["character_name"],
+            profile["character_class"],
+            profile["character_level"],
+        )
+        for item_name in profile.get("inventory", []):
+            char.add_item(InventoryItem(item_name, "Common", "Item"))
+        _characters[name] = char
+    return _characters[name]
 
 
 def discover_adventures() -> list[type[MiniAdventure]]:
@@ -41,14 +79,18 @@ def discover_adventures() -> list[type[MiniAdventure]]:
     return found
 
 
-def update_stats(profiles: dict, players: list[dict], result: str) -> None:
-    """Parse result string to credit wins/losses to each player's profile."""
-    for p in players:
+def update_stats(profiles: dict, players: list[dict], adventure) -> None:
+    winner_index = getattr(adventure, 'winner_index', None)
+    for i, p in enumerate(players):
         name = p["name"]
-        if name in result:
-            profiles[name]["wins"] = profiles[name].get("wins", 0) + 1
+        if winner_index is None:
+            profiles[name]["wins"] += 1
+        elif winner_index == -1:
+            profiles[name]["losses"] += 1
+        elif winner_index == i:
+            profiles[name]["wins"] += 1
         else:
-            profiles[name]["losses"] = profiles[name].get("losses", 0) + 1
+            profiles[name]["losses"] += 1
     save_profiles(profiles)
 
 
@@ -80,7 +122,8 @@ class Engine:
 
         while not adventure.is_over():
             state = adventure.get_state()
-            print(f"\n{state}")
+            display = state.get("display", str(state)) if isinstance(state, dict) else str(state)
+            print(f"\n{display}")
 
             for i, p in enumerate(players):
                 if adventure.is_over():
@@ -101,10 +144,46 @@ class Engine:
         if not quit_requested:
             result = adventure.get_result()
             print(f"\n{result}")
-            update_stats(profiles, players, result)
-            print("\nUpdated profiles:")
+
+            winner_index = getattr(adventure, 'winner_index', None)
+            adventure_name = type(adventure).NAME
+
+            for i, p in enumerate(players):
+                name = p["name"]
+                if winner_index is None:
+                    outcome = "Win"
+                elif winner_index == -1:
+                    outcome = "Loss"
+                elif winner_index == i:
+                    outcome = "Win"
+                else:
+                    outcome = "Loss"
+
+                profiles[name]["quest_history"].append(
+                    f"{adventure_name}: {outcome} — Day 1"
+                )
+
+            # Sync collected items from adventure into character inventories
+            collected = getattr(adventure, 'collected_items', [[], []])
+            for i, p in enumerate(players):
+                char = get_character(p)
+                for item in collected[i]:
+                    char.add_item(item)
+                profiles[p["name"]]["inventory"] = [
+                    it.name for it in char.inventory.list_items()
+                ]
+
+            update_stats(profiles, players, adventure)
+
+            print("\n" + "=" * 50)
+            print("POST-GAME SUMMARY")
             for p in players:
                 name = p["name"]
                 pr = profiles[name]
-                print(f"  {name} — Wins: {pr['wins']}, Losses: {pr['losses']}")
-        
+                print(f"\n  {name} ({pr['character_name']}, {pr['character_class']} Lv.{pr['character_level']})")
+                print(f"    Realm: {pr['preferred_realm']}")
+                print(f"    Wins: {pr['wins']}  Losses: {pr['losses']}")
+                recent = pr["quest_history"][-3:]
+                if recent:
+                    print(f"    Recent quests: {', '.join(recent)}")
+            print("=" * 50)
